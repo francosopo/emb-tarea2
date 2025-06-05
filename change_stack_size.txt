@@ -1,0 +1,5 @@
+menuconfig
+component config
+esp system setting
+Main Task stack size
+10000
