@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <force_mode.h>
 
 #include "driver/i2c.h"
 #include "driver/uart.h"
@@ -302,6 +301,7 @@ int bme_check_forced_mode(void) {
     return (tmp == 0b001 && tmp2 == 0x59 && tmp3 == 0x00 && tmp4 == 0b100000 && tmp5 == 0b01010101);
 }
 
+
 int bme_temp_celsius(uint32_t temp_adc) {
     // Datasheet[23]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=23
@@ -338,6 +338,134 @@ int bme_temp_celsius(uint32_t temp_adc) {
     t_fine = (int32_t)(var2 + var3);
     calc_temp = (((t_fine * 5) + 128) >> 8);
     return calc_temp;
+}
+
+int bme_pressure_pascal(uint32_t press_adc, uint32_t temp_adc){
+
+    // Se obtienen los parametros de calibracion
+    uint8_t t_addr_par_t1_lsb = 0xE9, t_addr_par_t1_msb = 0xEA;
+    uint8_t t_addr_par_t2_lsb = 0x8A, t_addr_par_t2_msb = 0x8B;
+    uint8_t t_addr_par_t3_lsb = 0x8C;
+    uint16_t t_par_t1;
+    uint16_t t_par_t2;
+    uint16_t t_par_t3;
+
+    uint8_t t_par[5];
+    bme_i2c_read(I2C_NUM_0, &t_addr_par_t1_lsb, t_par, 1);
+    bme_i2c_read(I2C_NUM_0, &t_addr_par_t1_msb, t_par + 1, 1);
+    bme_i2c_read(I2C_NUM_0, &t_addr_par_t2_lsb, t_par + 2, 1);
+    bme_i2c_read(I2C_NUM_0, &t_addr_par_t2_msb, t_par + 3, 1);
+    bme_i2c_read(I2C_NUM_0, &t_addr_par_t3_lsb, t_par + 4, 1);
+
+    t_par_t1 = (t_par[1] << 8) | t_par[0];
+    t_par_t2 = (t_par[3] << 8) | t_par[2];
+    t_par_t3 = t_par[4];
+
+    int64_t t_var1;
+    int64_t t_var2;
+    int64_t t_var3;
+    int t_fine;
+
+    t_var1 = ((int32_t)temp_adc >> 3) - ((int32_t)t_par_t1 << 1);
+    t_var2 = (t_var1 * (int32_t)t_par_t2) >> 11;
+    t_var3 = ((t_var1 >> 1) * (t_var1 >> 1)) >> 12;
+    t_var3 = ((t_var3) * ((int32_t)t_par_t3 << 4)) >> 14;
+    t_fine = (int32_t)(t_var2 + t_var3);
+
+
+    // Se obtienen los parametros de calibracion
+    uint8_t addr_par_t1_lsb = 0x8E, addr_par_t1_msb = 0x8F;
+    uint8_t addr_par_t2_lsb = 0x90, addr_par_t2_msb = 0x91;
+    uint8_t addr_par_t3_lsb = 0x92;
+    uint8_t addr_par_t4_lsb = 0x94, addr_par_t4_msb = 0x95;
+    uint8_t addr_par_t5_lsb = 0x96, addr_par_t5_msb = 0x97;
+    uint8_t addr_par_t6_lsb = 0x99;
+    uint8_t addr_par_t7_lsb = 0x98;
+    uint8_t addr_par_t8_lsb = 0x9C, addr_par_t8_msb = 0x9D;
+    uint8_t addr_par_t9_lsb = 0x9E, addr_par_t9_msb = 0x9F;
+    uint8_t addr_par_t10_lsb = 0xA0;
+    uint16_t par_t1;
+    uint16_t par_t2;
+    uint16_t par_t3;
+    uint16_t par_t4;
+    uint16_t par_t5;
+    uint16_t par_t6;
+    uint16_t par_t7;
+    uint16_t par_t8;
+    uint16_t par_t9;
+    uint16_t par_t10;
+    uint32_t pressure_comp;
+
+    uint8_t par[20];
+    bme_i2c_read(I2C_NUM_0, &addr_par_t1_lsb, par, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t1_msb, par + 1, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t2_lsb, par + 2, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t2_msb, par + 3, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t3_lsb, par + 4, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t4_lsb, par + 6, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t4_msb, par + 7, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t5_lsb, par + 8, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t5_msb, par + 9, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t6_lsb, par + 11, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t7_lsb, par + 12, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t8_lsb, par + 16, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t8_msb, par + 17, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t9_lsb, par + 18, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t9_msb, par + 19, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t10_lsb, par + 20, 1);
+
+    par_t1 = (par[1] << 8) | par[0];
+    par_t2 = (par[3] << 8) | par[2];
+    par_t3 = par[4];
+    par_t4 = (par[7] << 8) | par[6];
+    par_t5 = (par[9] << 8) | par[8];
+    par_t6 = par[11];
+    par_t7 = par[12];
+    par_t8 = (par[17] << 8) | par[16];
+    par_t9 = (par[19] << 8) | par[18];
+    par_t10 = par[20];
+
+    int64_t var1;
+    int64_t var2;
+    int64_t var3;
+
+    /* This value is used to check precedence to multiplication or division
+     * in the pressure compensation equation to achieve least loss of precision and
+     * avoiding overflows.
+     * i.e Comparing value, pres_ovf_check = (1 << 31) >> 1
+     */
+    const int32_t pres_ovf_check = INT32_C(0x40000000);
+
+    /*lint -save -e701 -e702 -e713 */
+    var1 = (((int32_t)t_fine) >> 1) - 64000;
+    var2 = ((((var1 >> 2) * (var1 >> 2)) >> 11) * (int32_t)par_t6) >> 2;
+    var2 = var2 + ((var1 * (int32_t)par_t5) << 1);
+    var2 = (var2 >> 2) + ((int32_t)par_t4 << 16);
+    var1 = (((((var1 >> 2) * (var1 >> 2)) >> 13) * ((int32_t)par_t3 << 5)) >> 3) +
+           (((int32_t)par_t2 * var1) >> 1);
+    var1 = var1 >> 18;
+    var1 = ((32768 + var1) * (int32_t)par_t1) >> 15;
+    pressure_comp = 1048576 - press_adc;
+    pressure_comp = (int32_t)((pressure_comp - (var2 >> 12)) * ((uint32_t)3125));
+    if (pressure_comp >= pres_ovf_check)
+    {
+        pressure_comp = ((pressure_comp / var1) << 1);
+    }
+    else
+    {
+        pressure_comp = ((pressure_comp << 1) / var1);
+    }
+
+    var1 = ((int32_t)par_t9 * (int32_t)(((pressure_comp >> 3) * (pressure_comp >> 3)) >> 13)) >> 12;
+    var2 = ((int32_t)(pressure_comp >> 2) * (int32_t)par_t8) >> 13;
+    var3 =
+        ((int32_t)(pressure_comp >> 8) * (int32_t)(pressure_comp >> 8) * (int32_t)(pressure_comp >> 8) *
+         (int32_t)par_t10) >> 17;
+    pressure_comp = (int32_t)(pressure_comp) + ((var1 + var2 + var3 + ((int32_t)par_t7 << 7)) >> 4);
+
+    /*lint -restore */
+    return (uint32_t)pressure_comp;
+
 }
 
 void bme_get_mode(void) {
@@ -378,32 +506,51 @@ void bme_read_data(void) {
 }
 
 void bme_read_pressure(void){
-    uint8_t press;
+
+    uint8_t tmp;
+
+    // Se obtienen los datos de temperatura
+    uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
+
+    uint8_t press[17];
 
     uint8_t forced_pressure_addr[] = {0x1F, 0x20, 0x21};
     for (;;){
         uint32_t press_adc = 0;
         bme_forced_mode();
 
-        bme_i2c_read(I2C_NUM_0, &forced_pressure_addr[0], &press, 1);
-        press_adc = press_adc | press << 12;
-        bme_i2c_read(I2C_NUM_0, &forced_pressure_addr[1], &press, 1);
-        press_adc = press_adc | press << 4;
-        bme_i2c_read(I2C_NUM_0, &forced_pressure_addr[2], &press, 1);
-        press_adc = press_adc | (press & 0xf0) >> 4;
+        uint32_t temp_adc = 0;
+        // Datasheet[41]
+        // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
 
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[0], &tmp, 1);
+        temp_adc = temp_adc | tmp << 12;
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[1], &tmp, 1);
+        temp_adc = temp_adc | tmp << 4;
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[2], &tmp, 1);
+        temp_adc = temp_adc | (tmp & 0xf0) >> 4;
+
+        bme_i2c_read(I2C_NUM_0, &forced_pressure_addr[0], press, 17);
+        press_adc = (uint32_t)(((uint32_t)press[2] * 4096) | ((uint32_t)press[3] * 16) | ((uint32_t)press[4] / 16));
+
+        uint32_t press_res = bme_pressure_pascal(press_adc, temp_adc);
+
+        printf("Presión: %ld\n", press_res);
         
     }
 
 }
+void bme_read_temperature(void){
+
+}
+
 void app_main(void) {
     ESP_ERROR_CHECK(sensor_init());
     bme_get_chipid();
     bme_softreset();
-    //bme_get_mode();
-    //bme_forced_mode();
+    bme_get_mode();
+    bme_forced_mode();
     printf("Comienza lectura\n\n");
     //bme_read_data();
-
-    measure_data_force_mode();
+    bme_read_pressure();
 }
