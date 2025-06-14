@@ -40,6 +40,8 @@ uint16_t val0[6];
 
 float task_delay_ms = 1000;
 
+int t_fine;
+
 esp_err_t sensor_init(void) {
     int i2c_master_port = I2C_NUM_0;
     i2c_config_t conf;
@@ -328,7 +330,7 @@ int bme_temp_celsius(uint32_t temp_adc) {
     int64_t var1;
     int64_t var2;
     int64_t var3;
-    int t_fine;
+    //int t_fine;
     int calc_temp;
 
     var1 = ((int32_t)temp_adc >> 3) - ((int32_t)par_t1 << 1);
@@ -340,7 +342,7 @@ int bme_temp_celsius(uint32_t temp_adc) {
     return calc_temp;
 }
 
-int bme_pressure_pascal(uint32_t press_adc, uint32_t temp_adc){
+uint32_t bme_pressure_pascal(uint32_t press_adc, uint32_t temp_adc){
 
     // Se obtienen los parametros de calibracion
     uint8_t t_addr_par_t1_lsb = 0xE9, t_addr_par_t1_msb = 0xEA;
@@ -468,6 +470,78 @@ int bme_pressure_pascal(uint32_t press_adc, uint32_t temp_adc){
 
 }
 
+uint32_t bme_humidity(uint16_t hum_adc) {
+    uint8_t addr_par_t1_lsb = 0xE2, addr_par_t1_msb = 0xE3;
+    uint8_t addr_par_t2_lsb = 0xE2, addr_par_t2_msb = 0xE1;
+    uint8_t addr_par_t3_lsb = 0xE4;
+    uint8_t addr_par_t4_lsb = 0xE5;
+    uint8_t addr_par_t5_lsb = 0xE6;
+    uint8_t addr_par_t6_lsb = 0xE7;
+    uint8_t addr_par_t7_lsb = 0xE8;
+    uint16_t par_t1;
+    uint16_t par_t2;
+    uint16_t par_t3;
+    uint16_t par_t4;
+    uint16_t par_t5;
+    uint16_t par_t6;
+    uint16_t par_t7;
+
+    uint8_t par[9];
+    bme_i2c_read(I2C_NUM_0, &addr_par_t1_lsb, par, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t1_msb, par + 1, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t2_lsb, par + 2, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t2_msb, par + 3, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t3_lsb, par + 4, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t4_lsb, par + 5, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t5_lsb, par + 6, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t6_lsb, par + 7, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_t7_lsb, par + 8, 1);
+
+    par_t1 = (par[1] << 8) | (par[0] & 0xF);
+    par_t2 = (par[3] << 8) | (par[2] & 0xF0);
+    par_t3 = par[4];
+    par_t4 = par[5];
+    par_t5 = par[6];
+    par_t6 = par[7];
+    par_t7 = par[8];
+
+    int32_t var1;
+    int32_t var2;
+    int32_t var3;
+    int32_t var4;
+    int32_t var5;
+    int32_t var6;
+    int32_t temp_scaled;
+    int32_t calc_hum;
+
+    /*lint -save -e702 -e704 */
+    temp_scaled = (((int32_t)t_fine * 5) + 128) >> 8;
+    var1 = (int32_t)(hum_adc - ((int32_t)((int32_t)par_t1 * 16))) -
+           (((temp_scaled * (int32_t)par_t3) / ((int32_t)100)) >> 1);
+    var2 =
+        ((int32_t)par_t2 *
+         (((temp_scaled * (int32_t)par_t4) / ((int32_t)100)) +
+          (((temp_scaled * ((temp_scaled * (int32_t)par_t5) / ((int32_t)100))) >> 6) / ((int32_t)100)) +
+          (int32_t)(1 << 14))) >> 10;
+    var3 = var1 * var2;
+    var4 = (int32_t)par_t6 << 7;
+    var4 = ((var4) + ((temp_scaled * (int32_t)par_t7) / ((int32_t)100))) >> 4;
+    var5 = ((var3 >> 14) * (var3 >> 14)) >> 10;
+    var6 = (var4 * var5) >> 1;
+    calc_hum = (((var3 + var6) >> 10) * ((int32_t)1000)) >> 12;
+    if (calc_hum > 100000) /* Cap at 100%rH */
+    {
+        calc_hum = 100000;
+    }
+    else if (calc_hum < 0)
+    {
+        calc_hum = 0;
+    }
+
+    /*lint -restore */
+    return (uint32_t)calc_hum;
+}
+
 void bme_get_mode(void) {
     uint8_t reg_mode = 0x74;
     uint8_t tmp;
@@ -540,6 +614,36 @@ void bme_read_pressure(void){
     }
 
 }
+
+void bme_read_humidity(void){
+    uint8_t tmp;
+
+    // Se obtienen los datos de temperatura
+    uint8_t forced_hum_addr[] = {0x25, 0x26};
+    uint8_t hum[2];
+
+    for (;;) {
+        uint32_t hum_adc = 0;
+        bme_forced_mode();
+        // Datasheet[41]
+        // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
+
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[0], &tmp, 1);
+        temp_adc = temp_adc | tmp << 12;
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[1], &tmp, 1);
+        temp_adc = temp_adc | tmp << 4;
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[2], &tmp, 1);
+        temp_adc = temp_adc | (tmp & 0xf0) >> 4;
+
+        bme_i2c_read(I2C_NUM_0, &forced_hum_addr[0], hum, 2);
+        hum_adc = (uint16_t)(((uint32_t)hum[0] * 256) | (uint32_t)hum[1]);
+
+        uint32_t temp = bme_temp_celsius(temp_adc);
+        uint32_t humedad = bme_humidity(hum_adc);
+        printf("Humedad: %f\n", (float)humedad);
+    }
+}
+
 void bme_read_temperature(void){
 
 }
@@ -551,6 +655,6 @@ void app_main(void) {
     bme_get_mode();
     bme_forced_mode();
     printf("Comienza lectura\n\n");
-    //bme_read_data();
-    bme_read_pressure();
+    bme_read_data();
+    //bme_read_pressure();
 }
