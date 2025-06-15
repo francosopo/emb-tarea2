@@ -619,12 +619,14 @@ void bme_read_humidity(void){
     uint8_t tmp;
 
     // Se obtienen los datos de temperatura
+    uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
     uint8_t forced_hum_addr[] = {0x25, 0x26};
     uint8_t hum[2];
 
     for (;;) {
         uint32_t hum_adc = 0;
         bme_forced_mode();
+        uint32_t temp_adc = 0;
         // Datasheet[41]
         // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
 
