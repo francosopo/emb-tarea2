@@ -13,6 +13,8 @@
 #include "math.h"
 #include "sdkconfig.h"
 
+#include <uart.h>
+
 #define CONCAT_BYTES(msb, lsb) (((uint16_t)msb << 8) | (uint16_t)lsb)
 
 #define BUF_SIZE (128)       // buffer size
@@ -470,7 +472,7 @@ uint32_t bme_pressure_pascal(uint32_t press_adc, uint32_t temp_adc){
 
 }
 
-uint32_t bme_humidity(uint16_t hum_adc) {
+uint32_t bme_humidity(uint16_t hum_adc, int16_t temp_comp) {
     uint8_t addr_par_t1_lsb = 0xE2, addr_par_t1_msb = 0xE3;
     uint8_t addr_par_t2_lsb = 0xE2, addr_par_t2_msb = 0xE1;
     uint8_t addr_par_t3_lsb = 0xE4;
@@ -498,7 +500,8 @@ uint32_t bme_humidity(uint16_t hum_adc) {
     bme_i2c_read(I2C_NUM_0, &addr_par_t7_lsb, par + 8, 1);
 
     par_t1 = (par[1] << 8) | (par[0] & 0xF);
-    par_t2 = (par[3] << 8) | (par[2] & 0xF0);
+    //par_t2 = (par[3] << 8) | (par[2] & 0xF0);
+    par_t2 =  (par[2] ) | (par[3] << 8);
     par_t3 = par[4];
     par_t4 = par[5];
     par_t5 = par[6];
@@ -515,7 +518,7 @@ uint32_t bme_humidity(uint16_t hum_adc) {
     int32_t calc_hum;
 
     /*lint -save -e702 -e704 */
-    temp_scaled = (((int32_t)t_fine * 5) + 128) >> 8;
+    temp_scaled = (((int32_t)t_fine * 5) + 128) >> 8
     var1 = (int32_t)(hum_adc - ((int32_t)((int32_t)par_t1 * 16))) -
            (((temp_scaled * (int32_t)par_t3) / ((int32_t)100)) >> 1);
     var2 =
@@ -641,22 +644,23 @@ void bme_read_humidity(void){
         hum_adc = (uint16_t)(((uint32_t)hum[0] * 256) | (uint32_t)hum[1]);
 
         uint32_t temp = bme_temp_celsius(temp_adc);
-        uint32_t humedad = bme_humidity(hum_adc);
-        printf("Humedad: %f\n", (float)humedad);
+        uint32_t humedad = bme_humidity(hum_adc, temp);
+        printf("Humedad: %ld\n",humedad);
     }
 }
 
-void bme_read_temperature(void){
+void bme_gas(gas_range, gas_adc);
 
-}
 
 void app_main(void) {
     ESP_ERROR_CHECK(sensor_init());
     bme_get_chipid();
+    uart_setup();
     bme_softreset();
     bme_get_mode();
     bme_forced_mode();
     printf("Comienza lectura\n\n");
-    bme_read_data();
+    //bme_read_data();
     //bme_read_pressure();
+    bme_read_humidity();
 }
