@@ -4,9 +4,9 @@
 Include this root directory (gui) into the PYTHONPATH environment variable
 
 ## DEPENDENCIES
-install pyserial:
+install pyserial, PyQt5:
 ```sh
-pip install pyserial
+pip install -r requirements.txt
 ```
 
 ## CONFIG FILE
