@@ -34,6 +34,7 @@
 #define EXAMPLE_I2C_ACK_CHECK_DIS 0x0
 #define ACK_VAL 0x0
 #define NACK_VAL 0x1
+#define WINDOW_LENGTH 50
 
 esp_err_t ret = ESP_OK;
 esp_err_t ret2 = ESP_OK;
@@ -173,13 +174,13 @@ int bme_get_chipid(void) {
     uint8_t tmp;
 
     bme_i2c_read(I2C_NUM_0, &reg_id, &tmp, 1);
-    printf("Valor de CHIPID: %2X \n\n", tmp);
+    //printf("Valor de CHIPID: %2X \n\n", tmp);
 
     if (tmp == 0x61) {
-        printf("Chip BME688 reconocido.\n\n");
+        //printf("Chip BME688 reconocido.\n\n");
         return 0;
     } else {
-        printf("Chip BME688 no reconocido. \nCHIP ID: %2x\n\n", tmp);  // %2X
+        //printf("Chip BME688 no reconocido. \nCHIP ID: %2x\n\n", tmp);  // %2X
     }
 
     return 1;
@@ -191,10 +192,10 @@ int bme_softreset(void) {
     ret = bme_i2c_write(I2C_NUM_0, &reg_softreset, &val_softreset, 1);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     if (ret != ESP_OK) {
-        printf("\nError en softreset: %s \n", esp_err_to_name(ret));
+        //printf("\nError en softreset: %s \n", esp_err_to_name(ret));
         return 1;
     } else {
-        printf("\nSoftreset: OK\n\n");
+        //printf("\nSoftreset: OK\n\n");
     }
     return 0;
 }
@@ -518,7 +519,7 @@ uint32_t bme_humidity(uint16_t hum_adc, int16_t temp_comp) {
     int32_t calc_hum;
 
     /*lint -save -e702 -e704 */
-    temp_scaled = (((int32_t)t_fine * 5) + 128) >> 8
+    temp_scaled = (((int32_t)t_fine * 5) + 128) >> 8;
     var1 = (int32_t)(hum_adc - ((int32_t)((int32_t)par_t1 * 16))) -
            (((temp_scaled * (int32_t)par_t3) / ((int32_t)100)) >> 1);
     var2 =
@@ -553,10 +554,10 @@ void bme_get_mode(void) {
 
     tmp = tmp & 0x3;
 
-    printf("Valor de BME MODE: %2X \n\n", tmp);
+    //printf("Valor de BME MODE: %2X \n\n", tmp);
 }
 
-void bme_read_data(void) {
+void bme_read_temperature(float *buf, int64_t length) {
     // Datasheet[23:41]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=23
 
@@ -564,7 +565,7 @@ void bme_read_data(void) {
 
     // Se obtienen los datos de temperatura
     uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
-    for (;;) {
+    for (int64_t i = 0; i < length; i++) {
         uint32_t temp_adc = 0;
         bme_forced_mode();
         // Datasheet[41]
@@ -578,7 +579,8 @@ void bme_read_data(void) {
         temp_adc = temp_adc | (tmp & 0xf0) >> 4;
 
         uint32_t temp = bme_temp_celsius(temp_adc);
-        printf("Temperatura: %f\n", (float)temp / 100);
+        //printf("Temperatura: %f\n", (float)temp / 100);
+        buf[i] = (float)temp/100;
     }
 }
 
@@ -618,7 +620,7 @@ void bme_read_pressure(void){
 
 }
 
-void bme_read_humidity(void){
+void bme_read_humidity(uint32_t *buf, uint64_t length){
     uint8_t tmp;
 
     // Se obtienen los datos de temperatura
@@ -626,7 +628,7 @@ void bme_read_humidity(void){
     uint8_t forced_hum_addr[] = {0x25, 0x26};
     uint8_t hum[2];
 
-    for (;;) {
+    for (uint64_t i = 0; i < length; i++) {
         uint32_t hum_adc = 0;
         bme_forced_mode();
         uint32_t temp_adc = 0;
@@ -645,22 +647,41 @@ void bme_read_humidity(void){
 
         uint32_t temp = bme_temp_celsius(temp_adc);
         uint32_t humedad = bme_humidity(hum_adc, temp);
-        printf("Humedad: %ld\n",humedad);
+        buf[i] = humedad;
     }
+
 }
 
 void bme_gas(gas_range, gas_adc);
 
 
 void app_main(void) {
-    ESP_ERROR_CHECK(sensor_init());
+    //ESP_ERROR_CHECK(sensor_init());
+    sensor_init();
     bme_get_chipid();
     uart_setup();
     bme_softreset();
     bme_get_mode();
     bme_forced_mode();
-    printf("Comienza lectura\n\n");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    char buf[6];
+   
+    for(;;){
+        int rlen = serial_read(buf, 6);
+        if (rlen > 0){
+            if (strcmp(buf, "BEGIN") == 0){
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                uart1_printf("OK", 3);
+                float buffer[WINDOW_LENGTH];
+                bme_read_temperature(buffer, WINDOW_LENGTH);
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                uart1_printf(buffer, sizeof(float) * WINDOW_LENGTH);
+            }
+        }
+    }
+    
+    esp_restart();
     //bme_read_data();
     //bme_read_pressure();
-    bme_read_humidity();
+    
 }

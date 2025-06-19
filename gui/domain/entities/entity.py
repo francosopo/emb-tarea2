@@ -21,7 +21,11 @@ class Entity():
     def retrieve_data(self):
         return self.data
     
+    def get_window_length(self):
+        return self.window_length
+
     def unpack(self, d):
-        return unpack(f"{self.window_length}{self.format_identifier}", d)[0]
+        print(self.window_length, self.format_identifier, len(d))
+        return unpack(f"{self.window_length}{self.format_identifier}", d)
     
     
