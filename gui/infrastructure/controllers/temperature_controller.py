@@ -4,14 +4,7 @@ from gui.infrastructure.controllers.serial_controller import SerialController
 class TemperatureController(SerialController):
 
     def __init__(self, sensor, view):
-        super().__init__(Temperature(), sensor)
-        self.view = view
-
-    def add_data(self, d):
-        self.entity.add_data(d)
-
-    def retrieve_data(self):
-        return self.entity.retrieve_data()
+        super().__init__(Temperature(), sensor, view)
     
     def show_sensor_modes(self):
         return self.sensor.show_modes()
@@ -20,3 +13,6 @@ class TemperatureController(SerialController):
         selected_text = self.view.dropdown.currentText()
         self.view.selected_mode = selected_text
         self.view.labelSelectedMode.setText(selected_text)
+    
+    def add_data_to_view(self, data):
+        self.view.add_temperature_data(data)

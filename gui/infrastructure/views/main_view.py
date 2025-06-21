@@ -10,7 +10,7 @@ class MainView():
 
         tabs = QTabWidget()
         tabs.addTab(GasSensorTab(), "Gas Sensor")
-        tabs.addTab(IntertialSensorTab(), "Inertial Sensor")
+        #tabs.addTab(IntertialSensorTab(), "Inertial Sensor")
         layout = QVBoxLayout()
         layout.addWidget(tabs)
         self.window.setLayout(layout)
