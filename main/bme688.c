@@ -665,7 +665,6 @@ void app_main(void) {
     bme_forced_mode();
     vTaskDelay(pdMS_TO_TICKS(1000));
     char buf[6];
-   
     for(;;){
         int rlen = serial_read(buf, 6);
         if (rlen > 0){
