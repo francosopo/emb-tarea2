@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 QLabel, QComboBox, QPushButton
 )
+
+from PyQt5 import QtCore
 import pyqtgraph as pg
 
 from gui.domain.gas_sensor import GasSensor
@@ -51,6 +53,8 @@ class GasSensorTab(QWidget):
         self.buttonStop.clicked.connect(self.controller.stop_receiving)
 
         self.graph = pg.PlotWidget()
+        self.pen = pg.mkPen(color=(255, 255, 255), width=5, style=QtCore.Qt.DashLine)
+        self.line = None
 
         layout.addWidget(self.label)
         layout.addWidget(self.dropdown)
@@ -61,16 +65,37 @@ class GasSensorTab(QWidget):
         self.setLayout(layout)
 
     def add_temperature_data(self, d):
-        self.graph.clear()
+        #self.graph.clear()
         self.temp_data.append(d)
         self.time += 1
         self.temp_data_time.append(self.time)
-        self.graph.plot(self.temp_data_time, self.temp_data)
+        self.graph.setTitle("Temperature vs Time")
+        styles = {
+            "color": "yellow",
+            "font-size": "18px"
+        }
+        self.graph.setLabel("left", "Temperature (ºC)", **styles)
+        self.graph.setLabel("bottom", "Time", **styles)
+        if self.line is None:
+            print("printing data...")
+            self.line = self.graph.plot(self.temp_data_time, self.temp_data, pen=self.pen)
+        else:
+            self.line.setData(self.temp_data_time, self.temp_data, pen=self.pen)
 
 
     def add_humidity_data(self, d):
-        self.graph.clear()
+        #self.graph.clear()
         self.humdity_data.append(d)
         self.time += 1
         self.humidity_data_time.append(self.time)
-        self.graph.plot(self.humidity_data_time, self.humidity_data)
+        self.graph.setTitle("Humidity vs Time")
+        styles = {
+            "color": "yellow",
+            "font-size": "18px"
+        }
+        self.graph.setLabel("left", "Humidity (%)", **styles)
+        self.graph.setLabel("bottom", "Time", **styles)
+        if self.line is None:
+            self.line = self.graph.plot(self.humidity_data_time, self.humidity_data, pen=self.pen)
+        else:
+            self.line.setData(self.humidity_data_time, self.humidity_data, pen=self.pen)

@@ -11,4 +11,5 @@ class TemperatureController(SerialController):
 
     
     def add_data_to_view(self, data):
-        self.view.add_temperature_data(data)
+        for d in data:
+            self.view.add_temperature_data(d)

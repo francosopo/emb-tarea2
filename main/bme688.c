@@ -662,19 +662,42 @@ void app_main(void) {
     uart_setup();
     bme_softreset();
     bme_get_mode();
-    bme_forced_mode();
+    //bme_forced_mode();
     vTaskDelay(pdMS_TO_TICKS(1000));
     char buf[6];
+    int sensor_conf;
+    int entity_length;
     for(;;){
-        int rlen = serial_read(buf, 6);
+        int rlen = serial_read(buf, 6); // this should be "BEGIN"
         if (rlen > 0){
             if (strcmp(buf, "BEGIN") == 0){
                 vTaskDelay(pdMS_TO_TICKS(1000));
-                uart1_printf("OK", 3);
-                float buffer[WINDOW_LENGTH];
-                bme_read_temperature(buffer, WINDOW_LENGTH);
+                uart1_printf("OK", 3); // sending ack
+                
+                rlen = serial_raw_read(&sensor_conf, 4);
+                // acquiring memory to save into buffer configuration buffer
+                char *conf_buffer = (char *)calloc(sensor_conf, sizeof(char));
+                rlen = serial_raw_read(conf_buffer, sensor_conf);
+                if (strncmp(conf_buffer, "forced", 7) == 0){
+                    bme_forced_mode();
+                }else if (strncmp(conf_buffer, "parallel", 9) == 0){
+                    bme_forced_mode();
+                }else if (strncmp(conf_buffer, "sleep", 6) == 0){
+                    bme_forced_mode();
+                }
+
                 vTaskDelay(pdMS_TO_TICKS(1000));
-                uart1_printf(buffer, sizeof(float) * WINDOW_LENGTH);
+                rlen = serial_raw_read(&entity_length, 4);
+                char *entity = calloc(entity_length, sizeof(char));
+                uart1_printf("OK", 3);
+                if (strncmp(entity, "Temperature", entity_length) == 0){
+                    float buffer[WINDOW_LENGTH];
+                    bme_read_temperature(buffer, WINDOW_LENGTH);
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                    uart1_printf(buffer, sizeof(float) * WINDOW_LENGTH);
+                }
+                free(conf_buffer);
+                free(entity);
             }
         }
     }

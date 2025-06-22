@@ -48,41 +48,59 @@ class SerialController(abc.ABC):
     def start_receiving(self):
         time.sleep(1)
         # Empezamos con un BEGIN la comunicación
+        print("empezando...")
         msg = pack("6s", "BEGIN\0".encode())
         self.cond.acquire()
         self.ser.write(msg)
         self.cond.release()
         time.sleep(1)
         self.cond.acquire()
+
         # Leemos la respuesta, debe ser un OK
         ok = self.ser.read(3)
         self.cond.release()
         ok2 = unpack("3s", ok)[0]
         ok2 = ok2.decode()
-
+        print(ok2)
         # Mandamos la configuración del sensor
         self.cond.acquire()
-        sensor_conf = self.view.selected_mode
+
+        sensor_conf = self.view.selected_mode # forced, parallel o sleep
         # Mandamos el tamaño del dato "sensor_conf"
         sensor_conf_length = len(sensor_conf)
         sensor_conf_length_msg = pack(f"i", sensor_conf_length)
         self.ser.write(sensor_conf_length_msg)
+        print("sending configuration")
+        time.sleep(1)
+        msg = pack(f"{sensor_conf_length}s", sensor_conf.encode())
+        self.ser.write(msg)
+        time.sleep(1)
 
         
-
-        self.cond.release()
         # Qué tipo de dato queremos leer
         # Entity debe tener un nombre:
         # Temperature, Pressure, Gas o Humidity
         # o Acceleration, Gyroscope, etc...
+        payload_name = self.get_entity().get_name()
+        payload_name_size = len(payload_name)
+        payload_name_msg = pack("i", payload_name_size)
+        self.ser.write(payload_name_msg)
+        time.sleep(1)
         payload = pack(f"{len(self.entity.get_name()) + 1}s", (self.entity.get_name() + "\0").encode())
         self.ser.write(payload)
+        print("enviando entidad de datos")
         print("recibiendo...")
         time.sleep(1)
+
+        raw_data = self.ser.read(3)
+        data = unpack("3s", raw_data)[0]
+        ack = data.decode()
+        print(ack)
+        self.cond.release()
         data = self.read()
         for d in data:
             self.entity.add_data(d)
-            self.add_data_to_view(d)
+        self.add_data_to_view(data)
              
 
     @abc.abstractmethod
