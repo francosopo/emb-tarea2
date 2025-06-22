@@ -690,7 +690,7 @@ void app_main(void) {
                 rlen = serial_raw_read(&entity_length, 4);
                 char *entity = calloc(entity_length, sizeof(char));
                 uart1_printf("OK", 3);
-                if (strncmp(entity, "Temperature", entity_length) == 0){
+                if (strncmp(entity, "Temperature", 12) == 0){
                     float buffer[WINDOW_LENGTH];
                     bme_read_temperature(buffer, WINDOW_LENGTH);
                     vTaskDelay(pdMS_TO_TICKS(1000));
