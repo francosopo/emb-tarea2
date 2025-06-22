@@ -47,16 +47,36 @@ class SerialController(abc.ABC):
 
     def start_receiving(self):
         time.sleep(1)
+        # Empezamos con un BEGIN la comunicación
         msg = pack("6s", "BEGIN\0".encode())
         self.cond.acquire()
         self.ser.write(msg)
         self.cond.release()
         time.sleep(1)
         self.cond.acquire()
+        # Leemos la respuesta, debe ser un OK
         ok = self.ser.read(3)
         self.cond.release()
         ok2 = unpack("3s", ok)[0]
         ok2 = ok2.decode()
+
+        # Mandamos la configuración del sensor
+        self.cond.acquire()
+        sensor_conf = self.view.selected_mode
+        # Mandamos el tamaño del dato "sensor_conf"
+        sensor_conf_length = len(sensor_conf)
+        sensor_conf_length_msg = pack(f"i", sensor_conf_length)
+        self.ser.write(sensor_conf_length_msg)
+
+        
+
+        self.cond.release()
+        # Qué tipo de dato queremos leer
+        # Entity debe tener un nombre:
+        # Temperature, Pressure, Gas o Humidity
+        # o Acceleration, Gyroscope, etc...
+        payload = pack(f"{len(self.entity.get_name()) + 1}s", (self.entity.get_name() + "\0").encode())
+        self.ser.write(payload)
         print("recibiendo...")
         time.sleep(1)
         data = self.read()

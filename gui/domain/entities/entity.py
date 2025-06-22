@@ -4,7 +4,7 @@ from gui.domain.config_manager import  ConfigManager
 
 class Entity():
 
-    def __init__(self, format_identifier, size):
+    def __init__(self, format_identifier, size, name):
         self.lock = None
         self.config_manager = ConfigManager.make_obj()
         self.window_length = self.config_manager.get_window_length()
@@ -15,6 +15,7 @@ class Entity():
         self.format_identifier = format_identifier
         self.size = size
         self.buffer_size = 0 
+        self.name = name
     
     def get_size(self):
         return self.size
@@ -48,5 +49,8 @@ class Entity():
     def unpack(self, d):
         print(self.window_length, self.format_identifier, len(d))
         return unpack(f"{self.window_length}{self.format_identifier}", d)
+
+    def get_name(self):
+        return self.name
     
     

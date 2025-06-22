@@ -4,8 +4,8 @@ from gui.domain.entities.entity import Entity
 
 class AxisEntity(Entity):
 
-    def __init__(self):
-        super().__init__("f", 4)
+    def __init__(self, name):
+        super().__init__("f", 4, name)
         self.data = {
             "x": [],
             "y": [],
