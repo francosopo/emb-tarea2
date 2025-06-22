@@ -72,9 +72,6 @@ class SerialController(abc.ABC):
     def stop_receiving(self):  
         self.stop = True   
 
-    def selection_changed(self, index):
-        selected_text = self.view.dropdown.currentText()
-        self.view.selected_mode = selected_text
-        self.view.labelSelectedMode.setText(selected_text)
+    
 
 

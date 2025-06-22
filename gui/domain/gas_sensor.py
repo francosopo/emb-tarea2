@@ -10,4 +10,11 @@ class GasSensor(Component):
             "sleep"
         ]
 
+        self.CLASSIFICATION_DATA = [
+            "Temperature",
+            "Gas",
+            "Humidity",
+            "Pressure"
+        ]
+
     
