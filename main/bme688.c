@@ -500,9 +500,8 @@ uint32_t bme_humidity(uint16_t hum_adc, int16_t temp_comp) {
     bme_i2c_read(I2C_NUM_0, &addr_par_t6_lsb, par + 7, 1);
     bme_i2c_read(I2C_NUM_0, &addr_par_t7_lsb, par + 8, 1);
 
-    par_t1 = (par[1] << 8) | (par[0] & 0xF);
-    //par_t2 = (par[3] << 8) | (par[2] & 0xF0);
-    par_t2 =  (par[2] ) | (par[3] << 8);
+    par_t1 = (par[1] << 4) | (par[0] & 0xF);
+    par_t2 = (par[3] << 4) | (par[2] >> 4);
     par_t3 = par[4];
     par_t4 = par[5];
     par_t5 = par[6];
@@ -555,6 +554,22 @@ void bme_get_mode(void) {
     tmp = tmp & 0x3;
 
     //printf("Valor de BME MODE: %2X \n\n", tmp);
+}
+
+uint32_t calc_gas_resistance_ohms(uint16_t gas_res_adc, uint8_t gas_range)
+{
+    uint32_t calc_gas_res;
+    uint32_t var1 = UINT32_C(262144) >> gas_range;
+    int32_t var2 = (int32_t)gas_res_adc - INT32_C(512);
+
+    var2 *= INT32_C(3);
+    var2 = INT32_C(4096) + var2;
+
+    /* multiplying 10000 then dividing then multiplying by 100 instead of multiplying by 1000000 to prevent overflow */
+    calc_gas_res = (UINT32_C(10000) * var1) / (uint32_t)var2;
+    calc_gas_res = calc_gas_res * 100;
+
+    return calc_gas_res;
 }
 
 void bme_read_temperature(float *buf, int64_t length) {
@@ -652,8 +667,37 @@ void bme_read_humidity(uint32_t *buf, uint64_t length){
 
 }
 
-void bme_gas(gas_range, gas_adc);
+void bme_read_gas(uint32_t *buf, uint64_t length) {
+    uint8_t tmp;
 
+    // Se obtienen los datos de temperatura
+    uint8_t forced_temp_addr[] = {0x22, 0x23, 0x24};
+    uint8_t forced_gas_addr[] = {0x2C, 0x2D};
+    uint8_t gas[2];
+
+    for (uint64_t i = 0; i < length; i++) {
+        uint32_t gas_adc = 0;
+        //bme_forced_mode();
+        uint32_t temp_adc = 0;
+        // Datasheet[41]
+        // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
+
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[0], &tmp, 1);
+        temp_adc = temp_adc | tmp << 12;
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[1], &tmp, 1);
+        temp_adc = temp_adc | tmp << 4;
+        bme_i2c_read(I2C_NUM_0, &forced_temp_addr[2], &tmp, 1);
+        temp_adc = temp_adc | (tmp & 0xf0) >> 4;
+
+        bme_i2c_read(I2C_NUM_0, &forced_gas_addr[0], gas, 2);
+        gas_adc = (uint16_t)((uint32_t)gas[0] * 4 | (((uint32_t)gas[1]) / 64));
+        gas_range = gas[1] & 0xF;
+
+        uint32_t temp = bme_temp_celsius(temp_adc);
+        uint32_t gas_resistance = calc_gas_resistance_ohms(gas_adc, gas_range);
+        buf[i] = gas_resistance;
+    }
+}
 
 void app_main(void) {
     //ESP_ERROR_CHECK(sensor_init());
