@@ -36,6 +36,11 @@
 #define NACK_VAL 0x1
 #define WINDOW_LENGTH 50
 
+#define TEMPERATURE 1
+#define HUMIDITY 2
+#define GAS 3
+#define PRESSURE 4
+
 esp_err_t ret = ESP_OK;
 esp_err_t ret2 = ESP_OK;
 
@@ -599,7 +604,7 @@ void bme_read_temperature(float *buf, int64_t length) {
     }
 }
 
-void bme_read_pressure(void){
+void bme_read_pressure(uint32_t *out_buf, int64_t length){
 
     uint8_t tmp;
 
@@ -609,7 +614,7 @@ void bme_read_pressure(void){
     uint8_t press[17];
 
     uint8_t forced_pressure_addr[] = {0x1F, 0x20, 0x21};
-    for (;;){
+    for (int64_t i=0; i < length; i++){
         uint32_t press_adc = 0;
         bme_forced_mode();
 
@@ -629,7 +634,7 @@ void bme_read_pressure(void){
 
         uint32_t press_res = bme_pressure_pascal(press_adc, temp_adc);
 
-        printf("Presión: %ld\n", press_res);
+        out_buf[i] = press_res
         
     }
 
@@ -677,8 +682,10 @@ void bme_read_gas(uint32_t *buf, uint64_t length) {
 
     for (uint64_t i = 0; i < length; i++) {
         uint32_t gas_adc = 0;
+        uint32_t gas_range;
         //bme_forced_mode();
         uint32_t temp_adc = 0;
+
         // Datasheet[41]
         // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=41
 
@@ -698,6 +705,24 @@ void bme_read_gas(uint32_t *buf, uint64_t length) {
         buf[i] = gas_resistance;
     }
 }
+void print_data(){
+    for(;;){
+        float temperature_buffer[WINDOW_LENGTH];
+        uint32_t pressure_buffer[WINDOW_LENGTH];
+        uint32_t humidity_buffer[WINDOW_LENGTH];
+        uint32_t gas_buffer[WINDOW_LENGTH];
+        bme_read_gas(gas_buffer, WINDOW_LENGTH);
+        bme_read_pressure(pressure_buffer, WINDOW_LENGTH);
+        bme_read_humidity(humidity_buffer, WINDOW_LENGTH);
+        bme_read_temperature(temperature_buffer, WINDOW_LENGTH);
+        for (int i = 0; i < WINDOW_LENGTH; i++) {
+            printf("Temperatura (ºC):%f",temperature_buffer[i]);
+            printf("Presión (Pa):%ld",pressure_buffer[i]);
+            printf("Humedad (%), %ld", humidity_buffer[i]);
+            printf("Resistencia del gas (Ohm): %ld\n",gas_buffer[i]);
+        }
+    }
+}
 
 void app_main(void) {
     //ESP_ERROR_CHECK(sensor_init());
@@ -706,45 +731,52 @@ void app_main(void) {
     uart_setup();
     bme_softreset();
     bme_get_mode();
-    //bme_forced_mode();
+    bme_forced_mode();
     vTaskDelay(pdMS_TO_TICKS(1000));
     char buf[6];
     int sensor_conf;
     int entity_length;
-    for(;;){
-        int rlen = serial_read(buf, 6); // this should be "BEGIN"
-        if (rlen > 0){
-            if (strcmp(buf, "BEGIN") == 0){
-                vTaskDelay(pdMS_TO_TICKS(1000));
-                uart1_printf("OK", 3); // sending ack
+    
+    print_data();
+    
+    // for(;;){
+    //     int rlen = serial_read(buf, 6); // this should be "BEGIN"
+    //     if (rlen > 0){
+    //         if (strcmp(buf, "BEGIN") == 0){
+    //             vTaskDelay(pdMS_TO_TICKS(1000));
+    //             uart1_printf("OK", 3); // sending ack
                 
-                rlen = serial_raw_read(&sensor_conf, 4);
-                // acquiring memory to save into buffer configuration buffer
-                char *conf_buffer = (char *)calloc(sensor_conf, sizeof(char));
-                rlen = serial_raw_read(conf_buffer, sensor_conf);
-                if (strncmp(conf_buffer, "forced", 7) == 0){
-                    bme_forced_mode();
-                }else if (strncmp(conf_buffer, "parallel", 9) == 0){
-                    bme_forced_mode();
-                }else if (strncmp(conf_buffer, "sleep", 6) == 0){
-                    bme_forced_mode();
-                }
-
-                vTaskDelay(pdMS_TO_TICKS(1000));
-                rlen = serial_raw_read(&entity_length, 4);
-                char *entity = calloc(entity_length, sizeof(char));
-                uart1_printf("OK", 3);
-                if (strncmp(entity, "Temperature", 12) == 0){
-                    float buffer[WINDOW_LENGTH];
-                    bme_read_temperature(buffer, WINDOW_LENGTH);
-                    vTaskDelay(pdMS_TO_TICKS(1000));
-                    uart1_printf(buffer, sizeof(float) * WINDOW_LENGTH);
-                }
-                free(conf_buffer);
-                free(entity);
-            }
-        }
-    }
+    //             rlen = serial_raw_read(&sensor_conf, 4);
+    //             // acquiring memory to save into buffer configuration buffer
+    //             char *conf_buffer = (char *)calloc(sensor_conf, sizeof(char));
+    //             if (conf_buffer == NULL) {
+    //                 printf("Error, buffer for conf is null!!");
+    //                 return;
+    //             }
+    //             rlen = serial_read(conf_buffer, sensor_conf);
+    //             if (strncmp(conf_buffer, "forced", 8) == 0){
+    //                 bme_forced_mode();
+    //             }else if (strncmp(conf_buffer, "parallel", 10) == 0){
+    //                 bme_forced_mode();
+    //             }else if (strncmp(conf_buffer, "sleep", 7) == 0){
+    //                 bme_forced_mode();
+    //             }
+    //             uart1_printf("OK", 3); // sending ack
+    //             vTaskDelay(pdMS_TO_TICKS(1000));
+    //             int entity = 1, entity2;
+    //             rlen = serial_int_read(&entity2, 4);
+    //             uart1_printf("OK", 3); // sending ack
+    //             vTaskDelay(pdMS_TO_TICKS(1000));
+    //             uart1_printf(&entity2, 4);
+    //             if (entity2 == TEMPERATURE){
+    //                 float buffer[WINDOW_LENGTH];
+    //                 bme_read_temperature(buffer, WINDOW_LENGTH);
+    //                 vTaskDelay(pdMS_TO_TICKS(1000));
+    //                 uart1_printf(buffer, sizeof(float) * WINDOW_LENGTH);
+    //             }
+    //         }
+    //     }
+    // }
     
     esp_restart();
     //bme_read_data();

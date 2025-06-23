@@ -38,3 +38,7 @@ int serial_raw_read(void *buffer, int size){
     int len = uart_read_bytes(UART_NUM, buffer, size, pdMS_TO_TICKS(1000) );
     return len;
 }
+int serial_int_read(int *buffer, int size){
+    int len = uart_read_bytes(UART_NUM, (int32_t*) buffer, size, pdMS_TO_TICKS(1000) );
+    return len;
+}

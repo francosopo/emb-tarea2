@@ -27,4 +27,5 @@ void uart_setup();
 // Función para leer desde el serial
 int serial_read(char *buffer, int size);
 int serial_raw_read(void *buffer, int size);
+int serial_int_read(int *buffer, int size);
 #endif

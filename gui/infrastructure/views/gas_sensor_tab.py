@@ -8,9 +8,10 @@ from PyQt5 import QtCore
 import pyqtgraph as pg
 
 from gui.domain.gas_sensor import GasSensor
-from gui.infrastructure.controllers.main_controller import MainController
-from gui.infrastructure.controllers.temperature_controller import TemperatureController
-from gui.infrastructure.controllers.humidity_controller import HumidityController
+from gui.domain.entities.temperature import Temperature
+from gui.domain.entities.pressure import Pressure
+from gui.domain.entities.humidity import Humidity
+from gui.domain.entities.gas import Gas
 
 class GasSensorTab(QWidget):
 
@@ -19,13 +20,10 @@ class GasSensorTab(QWidget):
         self.sensor = GasSensor("BME688")
         self.main_controller = MainController(self.sensor, self)
         self.time = 0
-        self.temperature_controller = TemperatureController(self.sensor, self)
-        self.temp_data = []
-        self.temp_data_time = []
-        
-        self.humidity_controller = HumidityController(self.sensor, self)
-        self.humidity_data = []
-        self.humidity_data_time = []
+        self.temperature = Temperature()
+        self.pressure= Pressure()
+        self.humidity = Humidity()
+        self.gas = Gas()
         
         #self.gas_controller = GasController(self.sensor, self)
         
@@ -63,12 +61,13 @@ class GasSensorTab(QWidget):
         layout.addWidget(self.buttonStop)
         layout.addWidget(self.graph)
         self.setLayout(layout)
+    
+    def add_time(self):
+        self.time += 1
 
     def add_temperature_data(self, d):
         #self.graph.clear()
-        self.temp_data.append(d)
-        self.time += 1
-        self.temp_data_time.append(self.time)
+        self.temperature.add_data(d)
         self.graph.setTitle("Temperature vs Time")
         styles = {
             "color": "yellow",

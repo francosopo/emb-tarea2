@@ -31,7 +31,9 @@ class SerialController(abc.ABC):
         print("total_read", self.entity.get_window_length() * self.entity.get_size())
         #while self.ser.in_waiting > 0:
         self.cond.acquire()
+        #time.sleep(1)
         raw_data = self.ser.read(self.entity.get_window_length() * self.entity.get_size())
+        print("raw_data", len(raw_data), raw_data)
         data = self.unpack(raw_data)
         self.cond.release()
         return data
@@ -75,33 +77,14 @@ class SerialController(abc.ABC):
         msg = pack(f"{sensor_conf_length}s", sensor_conf.encode())
         self.ser.write(msg)
         time.sleep(1)
-
+        self.view.add_time()
         
-        # Qué tipo de dato queremos leer
-        # Entity debe tener un nombre:
-        # Temperature, Pressure, Gas o Humidity
-        # o Acceleration, Gyroscope, etc...
-        payload_name = self.get_entity().get_name()
-        payload_name_size = len(payload_name)
-        payload_name_msg = pack("i", payload_name_size)
-        self.ser.write(payload_name_msg)
-        time.sleep(1)
-        payload = pack(f"{len(self.entity.get_name()) + 1}s", (self.entity.get_name() + "\0").encode())
-        self.ser.write(payload)
-        print("enviando entidad de datos")
-        print("recibiendo...")
-        time.sleep(1)
-
-        raw_data = self.ser.read(3)
-        data = unpack("3s", raw_data)[0]
-        ack = data.decode()
-        print(ack)
-        self.cond.release()
-        data = self.read()
-        for d in data:
-            self.entity.add_data(d)
-        self.add_data_to_view(data)
-             
+        response = self.ser.read(16)
+        data = unpack("fIII", response)
+        self.view.add_temperature_data(data[0])
+        self.view.add_pressure_data(data[1])
+        self.view.add_humidity_data(data[2])
+        self.view.add_gas_data(data[3])  
 
     @abc.abstractmethod
     def add_data_to_view(self, d):
