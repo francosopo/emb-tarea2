@@ -634,7 +634,7 @@ void bme_read_pressure(uint32_t *out_buf, int64_t length){
 
         uint32_t press_res = bme_pressure_pascal(press_adc, temp_adc);
 
-        out_buf[i] = press_res
+        out_buf[i] = press_res;
         
     }
 
@@ -716,10 +716,59 @@ void print_data(){
         bme_read_humidity(humidity_buffer, WINDOW_LENGTH);
         bme_read_temperature(temperature_buffer, WINDOW_LENGTH);
         for (int i = 0; i < WINDOW_LENGTH; i++) {
-            printf("Temperatura (ºC):%f",temperature_buffer[i]);
-            printf("Presión (Pa):%ld",pressure_buffer[i]);
-            printf("Humedad (%), %ld", humidity_buffer[i]);
+            printf("Temperatura (ºC):%f\n",temperature_buffer[i]);
+            printf("Presión (Pa):%ld\n",pressure_buffer[i]);
+            printf("Humedad (Porcentaje), %ld\n", humidity_buffer[i]);
             printf("Resistencia del gas (Ohm): %ld\n",gas_buffer[i]);
+        }
+    }
+}
+
+void send_data(){
+    int sensor_conf;
+    int entity_length;
+    char buf[6];
+    for(;;){
+        int rlen = serial_read(buf, 6); // this should be "BEGIN"
+        if (rlen > 0){
+            if (strcmp(buf, "BEGIN") == 0){
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                uart1_printf("OK", 3); // sending ack
+
+                rlen = serial_raw_read(&sensor_conf, 4);
+                // acquiring memory to save into buffer configuration buffer
+                char *conf_buffer = (char *)calloc(sensor_conf, sizeof(char));
+                if (conf_buffer == NULL) {
+                    printf("Error, buffer for conf is null!!");
+                    return;
+                }
+                rlen = serial_read(conf_buffer, sensor_conf);
+                if (strncmp(conf_buffer, "forced", 8) == 0){
+                    bme_forced_mode();
+                }else if (strncmp(conf_buffer, "parallel", 10) == 0){
+                    bme_forced_mode();
+                }else if (strncmp(conf_buffer, "sleep", 7) == 0){
+                    bme_forced_mode();
+                }
+                uart1_printf("OK", 3); // sending ack
+                vTaskDelay(pdMS_TO_TICKS(1000));
+
+                float temperature_buffer[WINDOW_LENGTH];
+                uint32_t pressure_buffer[WINDOW_LENGTH];
+                uint32_t humidity_buffer[WINDOW_LENGTH];
+                uint32_t gas_buffer[WINDOW_LENGTH];
+                bme_read_gas(gas_buffer, WINDOW_LENGTH);
+                bme_read_pressure(pressure_buffer, WINDOW_LENGTH);
+                bme_read_humidity(humidity_buffer, WINDOW_LENGTH);
+                bme_read_temperature(temperature_buffer, WINDOW_LENGTH);
+                for (int i = 0; i < WINDOW_LENGTH; i++) {
+                    uart1_printf(&temperature_buffer[i], 4);
+                    uart1_printf(&pressure_buffer[i], 4);
+                    uart1_printf(&humidity_buffer[i], 4);
+                    uart1_printf(&gas_buffer[i], 4);
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                }
+            }
         }
     }
 }
@@ -733,11 +782,11 @@ void app_main(void) {
     bme_get_mode();
     bme_forced_mode();
     vTaskDelay(pdMS_TO_TICKS(1000));
-    char buf[6];
-    int sensor_conf;
-    int entity_length;
     
-    print_data();
+
+    
+    //print_data();
+    send_data();
     
     // for(;;){
     //     int rlen = serial_read(buf, 6); // this should be "BEGIN"

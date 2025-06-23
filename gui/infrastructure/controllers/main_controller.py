@@ -1,6 +1,9 @@
-class MainController(object):
+from gui.infrastructure.controllers.serial_controller import SerialController
+
+class MainController(SerialController):
 
     def __init__(self, sensor, view):
+        super().__init__(None, sensor, view)
         self.sensor = sensor
         self.view = view
         

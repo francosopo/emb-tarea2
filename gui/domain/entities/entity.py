@@ -8,7 +8,7 @@ class Entity():
         self.lock = None
         self.config_manager = ConfigManager.make_obj()
         self.window_length = self.config_manager.get_window_length()
-        self.data = [0] * self.window_length
+        self.data = []
         self.top_index = 0
         self.bottom_index = 0
         self.index = 0
@@ -30,7 +30,7 @@ class Entity():
         # self.data[self.top_index % self.window_length] = d
         # self.top_index = (self.top_index + 1) % self.window_length
         # self.buffer_size += 1
-        self.data[self.top_index % self.window_length] = d
+        self.data.append(d)
         # self.lock.notify()
         # self.lock.release()
 
@@ -38,7 +38,7 @@ class Entity():
         # self.lock.acquire()
         # while(self.buffer_size == 0):
         #     self.lock.wait()
-        d = self.data[self.bottom_index]
+        d = self.data
         # self.bottom_index = (self.bottom_index + 1) % self.window_length
         # self.lock.notify()
         # self.lock.release()
