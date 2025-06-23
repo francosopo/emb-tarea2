@@ -783,7 +783,11 @@ void app_main(void) {
     bme_forced_mode();
     vTaskDelay(pdMS_TO_TICKS(1000));
     
-
+    /*uint8_t v;
+    bme_i2c_read(I2C_NUM_0, 0xF0, &v, 1);
+    if (v == 1){
+        printf("v: %d\n", v);
+    }*/
     
     //print_data();
     send_data();

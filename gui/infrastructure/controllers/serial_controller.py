@@ -47,7 +47,11 @@ class SerialController(abc.ABC):
         return self.retrieving_thread
 
     def start_receiving(self):
-        time.sleep(1)
+        # first_data = self.ser.read(1)
+        # f = unpack("B", first_data)[0]
+        # print(f, "==1?")
+        # time.sleep(1)
+
         # Empezamos con un BEGIN la comunicación
         print("empezando...")
         msg = pack("6s", "BEGIN\0".encode())
@@ -90,8 +94,8 @@ class SerialController(abc.ABC):
             print("len response:", len(response))
             data = unpack("fIII", response)
             self.view.add_temperature_data(data[0])
-            #self.view.add_pressure_data(data[1])
-            #self.view.add_humidity_data(data[2])
+            self.view.add_pressure_data(data[1])
+            self.view.add_humidity_data(data[2])
             self.view.add_gas_data(data[3])  
             time.sleep(1)
 

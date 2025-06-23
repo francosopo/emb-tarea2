@@ -52,10 +52,15 @@ class GasSensorTab(QWidget):
 
         self.temp_graph = pg.PlotWidget()
         self.gas_graph = pg.PlotWidget()
+        self.pressure_graph = pg.PlotWidget()
+        self.humidity_graph = pg.PlotWidget()
+
 
         self.pen = pg.mkPen(color=(255, 255, 255), width=5, style=QtCore.Qt.DashLine)
         self.temp_line = None
         self.gas_line = None
+        self.pressure_line = None
+        self.humidity_line = None
 
 
         layout.addWidget(self.label)
@@ -64,6 +69,8 @@ class GasSensorTab(QWidget):
         layout.addWidget(self.buttonStart)
         layout.addWidget(self.buttonStop)
         layout.addWidget(self.temp_graph)
+        layout.addWidget(self.pressure_graph)
+        layout.addWidget(self.humidity_graph)
         layout.addWidget(self.gas_graph)
         self.setLayout(layout)
     
@@ -80,33 +87,15 @@ class GasSensorTab(QWidget):
         }
         self.temp_graph.setLabel("left", "Temperature (ºC)", **styles)
         self.temp_graph.setLabel("bottom", "Time", **styles)
-        print(self.time_data)
-        print(self.temperature.get_data())
         if self.temp_line is None:
             print("printing data...")
             self.temp_line = self.temp_graph.plot(self.time_data, self.temperature.get_data(), pen=self.pen)
         else:
             self.temp_line.setData(self.time_data, self.temperature.get_data(), pen=self.pen)
 
-
-    def add_humidity_data(self, d):
-        #self.graph.clear()
-        self.humdity_data.append(d)
-        self.graph.setTitle("Humidity vs Time")
-        styles = {
-            "color": "yellow",
-            "font-size": "18px"
-        }
-        self.graph.setLabel("left", "Humidity (%)", **styles)
-        self.graph.setLabel("bottom", "Time", **styles)
-        if self.line is None:
-            self.line = self.graph.plot(self.humidity_data_time, self.humidity_data, pen=self.pen)
-        else:
-            self.line.setData(self.humidity_data_time, self.humidity_data, pen=self.pen)
-
     def add_gas_data(self, d):
         self.gas.add_data(d)
-        self.gas_graph.setTitle("Gas vs time")
+        self.gas_graph.setTitle("Gas vs Time")
         styles= {
             "color": "yellow",
             "font-size": "18px"
@@ -117,3 +106,37 @@ class GasSensorTab(QWidget):
             self.gas_line = self.gas_graph.plot(self.time_data, self.gas.get_data(), pen=self.pen)
         else:
             self.gas_line.setData(self.time_data, self.gas.get_data(), pen=self.pen)
+
+    def add_pressure_data(self, d):
+        self.pressure.add_data(d)
+        self.pressure_graph.setTitle("Pressure vs Time")
+        styles= {
+            "color": "yellow",
+            "font-size": "18px"
+        }
+        self.pressure_graph.setLabel("left", "Pressure (Pa)", **styles)
+        self.pressure_graph.setLabel("bottom", "Time", **styles)
+
+        if self.pressure_line is None:
+            self.pressure_line = self.pressure_graph.plot(self.time_data, self.pressure.get_data(), pen=self.pen)
+        else:
+            self.pressure_line.setData(self.time_data, self.pressure.get_data(), pen=self.pen)
+
+    def add_humidity_data(self, d):
+        self.humidity.add_data(d)
+        self.humidity_graph.setTitle("Humidity vs Time")
+        styles= {
+            "color": "yellow",
+            "font-size": "18px"
+        }
+        self.humidity_graph.setLabel("left", "Humidity (percentage)", **styles)
+        self.humidity_graph.setLabel("bottom", "Time", **styles)
+
+        if self.humidity_line is None:
+            self.humidity_line = self.humidity_graph.plot(self.time_data, self.humidity.get_data(), pen=self.pen)
+        else:
+            self.humidity_line.setData(self.time_data, self.humidity.get_data(), pen=self.pen)
+
+
+    
+
